@@ -82,9 +82,19 @@ export const useEditorStore = defineStore('editor', () => {
   function collapseLess() { expandToLevel(expandLevel.value - 1) }
 
   // ─── Undo / redo ────────────────────────────────────────────────────────────
+
+  /** Shifts the oldest undo entry and adjusts cleanDepth accordingly.
+   *  If the clean state itself is evicted, cleanDepth becomes -1 — a sentinel
+   *  that can never equal undoStack.length, keeping isDirty permanently true. */
+  function shiftUndo() {
+    undoStack.value.shift()
+    if (cleanDepth.value > 0) cleanDepth.value--
+    else cleanDepth.value = -1
+  }
+
   function pushUndo() {
     undoStack.value.push(deepCloneItems(tree.value))
-    if (undoStack.value.length > MAX_UNDO) undoStack.value.shift()
+    if (undoStack.value.length > MAX_UNDO) shiftUndo()
     redoStack.value = []
     isDirty.value = true
   }
@@ -115,7 +125,7 @@ export const useEditorStore = defineStore('editor', () => {
     const before = deepCloneItems(tree.value)
     if (!fn(tree.value)) return
     undoStack.value.push(before)
-    if (undoStack.value.length > MAX_UNDO) undoStack.value.shift()
+    if (undoStack.value.length > MAX_UNDO) shiftUndo()
     redoStack.value = []
     recalcDepths(tree.value)
     isDirty.value = true
