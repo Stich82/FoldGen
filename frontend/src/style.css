@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --accent: #4F8EF7;
+  --font-size: 13px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app {
+  width: 100%; height: 100%;
+  margin: 0; padding: 0;
+  overflow: hidden;
+  font-size: var(--font-size);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: transparent;
+  color: rgba(255,255,255,0.92);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.28); }
+
+/* Glass panels */
+.glass {
+  background: rgba(255,255,255,0.055);
+  backdrop-filter: blur(12px) saturate(1.5);
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+.glass-strong {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,0.14);
+}
+
+/* Accent utilities */
+.bg-accent    { background-color: var(--accent) !important; }
+.text-accent  { color: var(--accent) !important; }
+.border-accent { border-color: var(--accent) !important; }
+.shadow-accent { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent) !important; }
+
+/* Input */
+.input-base {
+  @apply w-full rounded-lg px-3 py-2 text-sm outline-none transition;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.9);
+}
+.input-base:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.input-base::placeholder { color: rgba(255,255,255,0.3); }
+
+/* Buttons */
+.btn {
+  @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150 select-none;
+  cursor: pointer;
+}
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn-ghost  { @apply btn; color: rgba(255,255,255,0.7); background: transparent; }
+.btn-ghost:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.95); }
+.btn-surface { @apply btn; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); }
+.btn-surface:hover { background: rgba(255,255,255,0.13); }
+.btn-accent { @apply btn; background: var(--accent); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 45%, transparent); }
+.btn-accent:hover { filter: brightness(1.12); }
+.btn-danger { @apply btn; color: #F56565; background: rgba(245,101,101,0.12); border: 1px solid rgba(245,101,101,0.2); }
+.btn-danger:hover { background: rgba(245,101,101,0.22); }
+.btn:disabled { opacity: 0.35; pointer-events: none; }
+
+/* Active segment in segmented controls — tinted with the app accent */
+.seg-active { background: color-mix(in srgb, var(--accent) 34%, rgba(127,127,127,0.10)) !important; color: #fff; }
+[data-theme="light"] .seg-active { color: rgba(0,0,0,0.9); }
+
+/* Sidebar template item */
+.tpl-item {
+  @apply flex items-center gap-2 rounded-lg px-3 py-2 text-sm cursor-pointer transition-all duration-150 select-none;
+  color: rgba(255,255,255,0.7);
+}
+.tpl-item:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.95); }
+.tpl-item.active {
+  color: #fff;
+  background: color-mix(in srgb, var(--accent) 18%, rgba(255,255,255,0.06));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* Tree rows */
+.tree-row {
+  @apply flex items-center gap-1 rounded-md px-2 py-[3px] cursor-pointer transition-all duration-100 select-none;
+  color: rgba(255,255,255,0.82);
+}
+.tree-row:hover { background: color-mix(in srgb, var(--accent) 13%, transparent); }
+.tree-row.selected { background: color-mix(in srgb, var(--accent) 30%, rgba(255,255,255,0.06)); color: #fff; }
+.tree-row.drag-over-into { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+.tree-row.drag-over-before { border-top: 2px solid var(--accent); }
+.tree-row.drag-over-after  { border-bottom: 2px solid var(--accent); }
+
+/* macOS window drag region — Wails v2 uses the --wails-draggable CSS property
+   (not Electron's -webkit-app-region). Custom properties inherit, so children
+   of a drag region are draggable unless they opt out with no-drag. */
+.titlebar-drag    { --wails-draggable: drag; }
+.titlebar-no-drag { --wails-draggable: no-drag; }
+
+/* ─── Light mode: custom component overrides ───────────────────────────── */
+[data-theme="light"] {
+  color-scheme: light;
+}
+[data-theme="light"] html,
+[data-theme="light"] body,
+[data-theme="light"] #app {
+  color: rgba(0,0,0,0.85);
+}
+[data-theme="light"] .glass {
+  background: rgba(255,255,255,0.80);
+  border-color: rgba(0,0,0,0.10);
+}
+[data-theme="light"] .glass-strong {
+  background: rgba(255,255,255,0.94);
+  border-color: rgba(0,0,0,0.12);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.28); }
+[data-theme="light"] .input-base {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.14);
+  color: rgba(0,0,0,0.85);
+}
+[data-theme="light"] .input-base::placeholder { color: rgba(0,0,0,0.35); }
+[data-theme="light"] .input-base:focus { border-color: var(--accent); }
+[data-theme="light"] .btn-ghost  { color: rgba(0,0,0,0.60); background: transparent; }
+[data-theme="light"] .btn-ghost:hover  { background: rgba(0,0,0,0.07); color: rgba(0,0,0,0.88); }
+[data-theme="light"] .btn-surface {
+  background: rgba(0,0,0,0.06);
+  border-color: rgba(0,0,0,0.12);
+  color: rgba(0,0,0,0.80);
+}
+[data-theme="light"] .btn-surface:hover { background: rgba(0,0,0,0.10); }
+[data-theme="light"] .btn-danger { color: #DC2626; background: rgba(220,38,38,0.08); border-color: rgba(220,38,38,0.18); }
+[data-theme="light"] .btn-danger:hover { background: rgba(220,38,38,0.14); }
+[data-theme="light"] .tpl-item { color: rgba(0,0,0,0.65); }
+[data-theme="light"] .tpl-item:hover { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.88); }
+[data-theme="light"] .tpl-item.active {
+  color: rgba(0,0,0,0.90);
+  background: color-mix(in srgb, var(--accent) 14%, rgba(255,255,255,0.60));
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+[data-theme="light"] .tree-row { color: rgba(0,0,0,0.80); }
+[data-theme="light"] .tree-row:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+[data-theme="light"] .tree-row.selected { color: rgba(0,0,0,0.92); }
+[data-theme="light"] .settings-label { color: rgba(0,0,0,0.40) !important; }
+
+/* ─── Light mode: Tailwind white-opacity class remapping ───────────────── */
+/* text-white and fractional opacities */
+[data-theme="light"] .text-white { color: rgba(0,0,0,0.92) !important; }
+[data-theme="light"] .text-white\/95 { color: rgba(0,0,0,0.92) !important; }
+[data-theme="light"] .text-white\/92 { color: rgba(0,0,0,0.90) !important; }
+[data-theme="light"] .text-white\/90 { color: rgba(0,0,0,0.88) !important; }
+[data-theme="light"] .text-white\/80 { color: rgba(0,0,0,0.80) !important; }
+[data-theme="light"] .text-white\/70 { color: rgba(0,0,0,0.72) !important; }
+[data-theme="light"] .text-white\/60 { color: rgba(0,0,0,0.62) !important; }
+[data-theme="light"] .text-white\/50 { color: rgba(0,0,0,0.54) !important; }
+[data-theme="light"] .text-white\/45 { color: rgba(0,0,0,0.50) !important; }
+[data-theme="light"] .text-white\/40 { color: rgba(0,0,0,0.46) !important; }
+[data-theme="light"] .text-white\/30 { color: rgba(0,0,0,0.38) !important; }
+[data-theme="light"] .text-white\/25 { color: rgba(0,0,0,0.34) !important; }
+[data-theme="light"] .text-white\/20 { color: rgba(0,0,0,0.28) !important; }
+
+/* bg-white opacity utilities */
+[data-theme="light"] .bg-white\/20 { background-color: rgba(0,0,0,0.10) !important; }
+[data-theme="light"] .bg-white\/15 { background-color: rgba(0,0,0,0.08) !important; }
+[data-theme="light"] .bg-white\/13 { background-color: rgba(0,0,0,0.07) !important; }
+[data-theme="light"] .bg-white\/12 { background-color: rgba(0,0,0,0.06) !important; }
+[data-theme="light"] .bg-white\/10 { background-color: rgba(0,0,0,0.06) !important; }
+[data-theme="light"] .bg-white\/08 { background-color: rgba(0,0,0,0.05) !important; }
+[data-theme="light"] .bg-white\/07 { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .bg-white\/05 { background-color: rgba(0,0,0,0.03) !important; }
+
+/* hover:bg-white opacity utilities */
+[data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(0,0,0,0.07) !important; }
+[data-theme="light"] .hover\:bg-white\/08:hover { background-color: rgba(0,0,0,0.05) !important; }
+
+/* border-white opacity utilities */
+[data-theme="light"] .border-white\/25 { border-color: rgba(0,0,0,0.20) !important; }
+[data-theme="light"] .border-white\/14 { border-color: rgba(0,0,0,0.11) !important; }
+[data-theme="light"] .border-white\/12 { border-color: rgba(0,0,0,0.10) !important; }
+[data-theme="light"] .border-white\/10 { border-color: rgba(0,0,0,0.09) !important; }
+[data-theme="light"] .border-white\/\[0\.12\] { border-color: rgba(0,0,0,0.10) !important; }
+[data-theme="light"] .border-white\/\[0\.10\] { border-color: rgba(0,0,0,0.09) !important; }
+[data-theme="light"] .border-white\/\[0\.07\] { border-color: rgba(0,0,0,0.07) !important; }
+[data-theme="light"] .border-white\/\[0\.05\] { border-color: rgba(0,0,0,0.05) !important; }
+
+/* bg-white divider lines (h-px) */
+[data-theme="light"] .bg-white\/10.h-px { background-color: rgba(0,0,0,0.09) !important; }
+
+/* Modal overlay */
+.modal-overlay {
+  @apply fixed inset-0 z-50 flex items-center justify-center;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}

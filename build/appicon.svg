@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Black background with a subtle top-down sheen -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#262628"/>
+      <stop offset="55%" stop-color="#151517"/>
+      <stop offset="100%" stop-color="#0B0B0C"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="50%" cy="-5%" r="75%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Coral folder (Claude-style clay) with a 3D top→bottom gradient -->
+    <linearGradient id="folder" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F6A079"/>
+      <stop offset="52%" stop-color="#E78153"/>
+      <stop offset="100%" stop-color="#CF6638"/>
+    </linearGradient>
+    <linearGradient id="folderBack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8845A"/>
+      <stop offset="100%" stop-color="#C65C34"/>
+    </linearGradient>
+
+    <!-- Soft drop shadow under the folder for depth -->
+    <filter id="depth" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="14" stdDeviation="22" flood-color="#000000" flood-opacity="0.38"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="230" ry="230" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="230" ry="230" fill="url(#sheen)"/>
+
+  <!-- Folder, optically centred (tab top 298 → body bottom 712, centre ≈ 505) -->
+  <g filter="url(#depth)">
+    <!-- Back panel + tab (slightly darker, peeks above the front) -->
+    <path d="M196 360 L196 322 Q196 298 220 298 L432 298 Q453 298 464 316 L489 360 Z" fill="url(#folderBack)"/>
+    <rect x="196" y="348" width="632" height="364" rx="50" fill="url(#folderBack)"/>
+    <!-- Front face -->
+    <rect x="196" y="374" width="632" height="338" rx="50" fill="url(#folder)"/>
+    <!-- Thin top highlight on the front face for the 3D sheen -->
+    <path d="M246 374 H778 Q828 374 828 424 L828 426 Q828 392 778 392 H246 Q196 392 196 426 L196 424 Q196 374 246 374 Z" fill="#FFFFFF" fill-opacity="0.20"/>
+  </g>
+</svg>
