@@ -215,7 +215,10 @@ func sanitizeFilename(name string) string {
 	)
 	s := replacer.Replace(name)
 	if len(s) > 100 {
-		s = s[:100]
+		runes := []rune(s)
+		if len(runes) > 100 {
+			s = string(runes[:100])
+		}
 	}
 	return s
 }
