@@ -166,7 +166,9 @@
         <div class="glass-strong rounded-2xl shadow-glass p-6 w-96 animate-fade-in">
           <h3 class="text-sm font-semibold mb-2">{{ genConfirm.title }}</h3>
           <p class="text-xs text-white/60 mb-2">Percorso di destinazione:</p>
-          <p class="text-xs font-mono bg-white/5 rounded-lg px-3 py-2 mb-4 break-all">{{ genConfirm.path }}</p>
+          <p class="text-xs font-mono bg-white/5 rounded-lg px-3 py-2 mb-2 break-all">{{ genConfirm.path }}</p>
+          <p v-if="genConfirm.note" class="text-[11px] text-amber-400/90 mb-4">⚠️ {{ genConfirm.note }}</p>
+          <div v-else class="mb-2"/>
           <div class="flex gap-2 justify-end">
             <button class="btn-ghost" @click="genConfirm.visible = false">Annulla</button>
             <button class="btn-accent" @click="confirmGen">Conferma</button>
@@ -248,7 +250,7 @@ import { useTemplatesStore } from '@/stores/templates'
 import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
 import {
-  nodesToItems, itemsToNodes, recalcDepths, toAsciiTree, flattenVisible,
+  nodesToItems, itemsToNodes, toAsciiTree, flattenVisible,
   moveUp, moveDown, promote, demoteNode, findById,
 } from '@/composables/useTree'
 import type { Node } from '@/types'
@@ -289,6 +291,8 @@ watch(isDirty, (d) => { SetDirty(d).catch(() => {}) })
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const toast = ref<InstanceType<typeof Toast> | null>(null)
 function notify(msg: string, icon = '✅') { toast.value?.show(msg, icon) }
+/** Extracts a readable message from a Wails/JS rejection. */
+function errMsg(e: any): string { return e?.message ?? (typeof e === 'string' ? e : String(e)) }
 
 // ─── Template operations ──────────────────────────────────────────────────────
 function createTemplate(name: string) { guardUnsaved(() => doCreateTemplate(name)) }
@@ -309,11 +313,11 @@ async function doImportTemplate() {
     const path = await OpenFileDialog()
     if (!path) return
     const tpl = await ImportTemplate(path)
-    if (!tpl.template_name) tpl.template_name = path.split('/').pop()?.replace('.json', '') ?? 'Importato'
+    if (!tpl.template_name) tpl.template_name = path.split(/[\\/]/).pop()?.replace(/\.json$/i, '') ?? 'Importato'
     await tplStore.save(tpl.template_name, tpl.tree)
     tplStore.selectTemplate(tpl.template_name)
     notify(`Template "${tpl.template_name}" importato`)
-  } catch (e: any) { notify(String(e), '❌') }
+  } catch (e: any) { notify(errMsg(e), '❌') }
 }
 
 function duplicateTemplate(name: string) {
@@ -321,7 +325,7 @@ function duplicateTemplate(name: string) {
     try {
       await tplStore.duplicate(name)
       notify('Template duplicato')
-    } catch (e: any) { notify(String(e), '❌') }
+    } catch (e: any) { notify(errMsg(e), '❌') }
   })
 }
 
@@ -332,7 +336,7 @@ async function exportTemplate() {
     if (!path) return
     await ExportTemplate(selectedName.value, path, itemsToNodes(tree.value) as any)
     notify('Template esportato')
-  } catch (e: any) { notify(String(e), '❌') }
+  } catch (e: any) { notify(errMsg(e), '❌') }
 }
 
 // ─── Scan ────────────────────────────────────────────────────────────────────
@@ -348,6 +352,10 @@ const appBackground = computed(() =>
     : 'linear-gradient(135deg, #0d0d12 0%, #111318 50%, #0f0f16 100%)'
 )
 
+function countNodes(ns: Node[]): number {
+  return ns.reduce((s, n) => s + 1 + countNodes(n.children ?? []), 0)
+}
+
 async function startScan() {
   try {
     const path = await OpenFolderDialog()
@@ -355,7 +363,10 @@ async function startScan() {
     scanPath.value = path
     scanNodes.value = await ScanFolder(path, settings.value.scan_hidden, settings.value.scan_max_depth)
     showScan.value = true
-  } catch (e: any) { notify(String(e), '❌') }
+    if (countNodes(scanNodes.value) >= 5000) {
+      notify('Cartella molto grande: la scansione è stata troncata (~5000 elementi)', '⚠️')
+    }
+  } catch (e: any) { notify(errMsg(e), '❌') }
 }
 
 async function saveScanTemplate(name: string, nodes: Node[]) {
@@ -366,10 +377,11 @@ async function saveScanTemplate(name: string, nodes: Node[]) {
 }
 
 // ─── Reorder (toolbar arrows, operate on the anchor) ──────────────────────────
-function doMoveUp() { if (selectedId.value) { editorStore.pushUndo(); moveUp(tree.value, selectedId.value) } }
-function doMoveDown() { if (selectedId.value) { editorStore.pushUndo(); moveDown(tree.value, selectedId.value) } }
-function doPromote() { if (selectedId.value) { editorStore.pushUndo(); promote(tree.value, selectedId.value); recalcDepths(tree.value) } }
-function doDemote() { if (selectedId.value) { editorStore.pushUndo(); demoteNode(tree.value, selectedId.value); recalcDepths(tree.value) } }
+// Only record undo / mark dirty when the move actually happens.
+function doMoveUp() { const id = selectedId.value; if (id) editorStore.reorder(t => moveUp(t, id)) }
+function doMoveDown() { const id = selectedId.value; if (id) editorStore.reorder(t => moveDown(t, id)) }
+function doPromote() { const id = selectedId.value; if (id) editorStore.reorder(t => promote(t, id)) }
+function doDemote() { const id = selectedId.value; if (id) editorStore.reorder(t => demoteNode(t, id)) }
 
 // ─── Add dialog ───────────────────────────────────────────────────────────────
 type AddType = 'child-folder' | 'sibling' | 'child-file'
@@ -383,10 +395,11 @@ const addInput = ref<HTMLInputElement | null>(null)
 const addError = ref('')
 
 const addHint = computed(() => {
+  const root = !addDialog.value.anchorId
   switch (addDialog.value.type) {
-    case 'child-folder': return 'La cartella verrà aggiunta come figlia della selezione'
-    case 'sibling': return "Verrà aggiunta dopo l'elemento selezionato, allo stesso livello"
-    case 'child-file': return "Il file verrà creato all'interno della selezione"
+    case 'child-folder': return root ? 'La cartella verrà aggiunta alla radice' : 'La cartella verrà aggiunta come figlia della selezione'
+    case 'sibling': return root ? 'Verrà aggiunta alla radice' : "Verrà aggiunta dopo l'elemento selezionato, allo stesso livello"
+    case 'child-file': return root ? 'Il file verrà creato alla radice' : "Il file verrà creato all'interno della selezione"
   }
 })
 const addPlaceholder = computed(() => addDialog.value.type === 'child-file' ? 'es. README.md' : 'es. NomeCartella')
@@ -468,8 +481,8 @@ async function copyPreview() {
 }
 
 // ─── Generate (with destination confirmation) ─────────────────────────────────
-const genConfirm = ref<{ visible: boolean; title: string; path: string; action: () => void }>({
-  visible: false, title: '', path: '', action: () => {},
+const genConfirm = ref<{ visible: boolean; title: string; path: string; note: string; action: () => void }>({
+  visible: false, title: '', path: '', note: '', action: () => {},
 })
 
 /** Joins a base path and a name using the separator already in use (so the
@@ -483,6 +496,7 @@ function createFolders(projectName: string, outputPath: string) {
   if (!projectName.trim() || !outputPath.trim()) return
   genConfirm.value = {
     visible: true, title: 'Creare le cartelle?', path: joinPath(outputPath, projectName),
+    note: 'Eventuali file con lo stesso nome verranno sovrascritti.',
     action: () => runCreateFolders(projectName, outputPath),
   }
 }
@@ -490,14 +504,14 @@ function generateBat(projectName: string, outputPath: string) {
   if (!projectName.trim() || !outputPath.trim()) return
   genConfirm.value = {
     visible: true, title: 'Generare lo script .bat?', path: joinPath(outputPath, `create_${projectName}.bat`),
-    action: () => runGenerate('bat', projectName, outputPath),
+    note: '', action: () => runGenerate('bat', projectName, outputPath),
   }
 }
 function generateSh(projectName: string, outputPath: string) {
   if (!projectName.trim() || !outputPath.trim()) return
   genConfirm.value = {
     visible: true, title: 'Generare lo script .sh?', path: joinPath(outputPath, `create_${projectName}.sh`),
-    action: () => runGenerate('sh', projectName, outputPath),
+    note: '', action: () => runGenerate('sh', projectName, outputPath),
   }
 }
 function confirmGen() { const a = genConfirm.value.action; genConfirm.value.visible = false; a() }
@@ -506,14 +520,14 @@ async function runCreateFolders(projectName: string, outputPath: string) {
   try {
     await CreateFolders(projectName, outputPath, itemsToNodes(tree.value) as any)
     notify(`Cartelle create in "${joinPath(outputPath, projectName)}"`, '📁')
-  } catch (e: any) { notify(String(e), '❌') }
+  } catch (e: any) { notify(errMsg(e), '❌') }
 }
 async function runGenerate(kind: 'bat' | 'sh', projectName: string, outputPath: string) {
   try {
     const fn = kind === 'bat' ? GenerateBat : GenerateSh
     const path = await fn(projectName, outputPath, itemsToNodes(tree.value) as any)
     notify(`File .${kind} creato: ${path}`, '📄')
-  } catch (e: any) { notify(String(e), '❌') }
+  } catch (e: any) { notify(errMsg(e), '❌') }
 }
 
 // ─── Modals ───────────────────────────────────────────────────────────────────
@@ -541,6 +555,15 @@ function onGlobalKey(e: KeyboardEvent) {
   const inEditable = t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable
   const cmd = e.metaKey || e.ctrlKey
 
+  // Escape closes the top-most dismissable modal.
+  if (e.key === 'Escape') {
+    if (genConfirm.value.visible) { genConfirm.value.visible = false; return }
+    if (showPreview.value) { showPreview.value = false; return }
+    if (showHelp.value) { showHelp.value = false; return }
+    if (showSwitchDialog.value) { showSwitchDialog.value = false; return }
+    if (deleteDialog.value.visible) { deleteDialog.value.visible = false; return }
+  }
+
   if (cmd && e.key === 's') { e.preventDefault(); saveCurrentTemplate(); return }
   if (cmd && e.key === 'o') { e.preventDefault(); startScan(); return }
   if (inEditable) return
@@ -566,7 +589,7 @@ async function saveCurrentTemplate() {
     await tplStore.save(selectedName.value, itemsToNodes(tree.value))
     editorStore.markClean()
     notify('Template salvato')
-  } catch (e: any) { notify(String(e), '❌') }
+  } catch (e: any) { notify(errMsg(e), '❌') }
 }
 
 // ─── Close handling ─────────────────────────────────────────────────────────────

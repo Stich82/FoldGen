@@ -44,14 +44,20 @@ export function reassignIds(item: TreeItem) {
 }
 
 /** Returns the ids whose ancestors are NOT also in the set — i.e. the roots of
- *  the selection. Prevents moving/copying a node and its parent together. */
+ *  the selection. Prevents moving/copying a node and its parent together.
+ *  Builds an id→parentId map once (O(n)) so it stays fast for large selections. */
 export function topLevelSelected(root: TreeItem[], ids: string[]): string[] {
   const set = new Set(ids)
+  const parentOf = new Map<string, string | null>()
+  const index = (items: TreeItem[]) => {
+    for (const it of items) { parentOf.set(it.id, it.parentId); index(it.children) }
+  }
+  index(root)
   return ids.filter(id => {
-    let parent = findById(root, id)?.parentId ?? null
+    let parent = parentOf.get(id) ?? null
     while (parent) {
       if (set.has(parent)) return false
-      parent = findById(root, parent)?.parentId ?? null
+      parent = parentOf.get(parent) ?? null
     }
     return true
   })

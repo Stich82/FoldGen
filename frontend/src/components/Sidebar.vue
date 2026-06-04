@@ -85,9 +85,9 @@
 
     <!-- Context menu -->
     <Teleport to="body">
+      <div v-if="ctx.visible" class="fixed inset-0 z-40" @click="ctx.visible = false" @contextmenu.prevent="ctx.visible = false"/>
       <div v-if="ctx.visible" class="fixed z-50 glass-strong rounded-xl shadow-glass overflow-hidden py-1 w-44 text-sm animate-fade-in"
         :style="{ top: ctx.y + 'px', left: ctx.x + 'px' }"
-        @mouseleave="ctx.visible = false"
       >
         <button class="ctx-row w-full text-left px-4 py-2 transition" @click="ctxRename">Rinomina</button>
         <button class="ctx-row w-full text-left px-4 py-2 transition" @click="ctxDuplicate">Duplica</button>
@@ -211,7 +211,7 @@ async function confirmRename() {
     await tplStore.rename(oldName, value.trim())
     emit('notify', `Template rinominato in "${value.trim()}"`, '✅')
   } catch (e: any) {
-    emit('notify', String(e), '❌')
+    emit('notify', e?.message ?? String(e), '❌')
   }
   renameDialog.value.visible = false
 }
@@ -234,7 +234,7 @@ async function confirmDelete() {
     await tplStore.remove(name)
     emit('notify', `Template "${name}" eliminato`, '🗑️')
   } catch (e: any) {
-    emit('notify', String(e), '❌')
+    emit('notify', e?.message ?? String(e), '❌')
   }
 }
 </script>

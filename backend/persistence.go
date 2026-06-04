@@ -16,13 +16,14 @@ import (
 func dataDir() string {
 	base, err := os.UserConfigDir()
 	if err != nil || base == "" {
-		if exe, e := os.Executable(); e == nil {
-			return filepath.Dir(exe)
-		}
-		return "."
+		base = os.TempDir()
 	}
 	dir := filepath.Join(base, "FoldGen")
-	_ = os.MkdirAll(dir, 0o755)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		// Last-resort writable location.
+		dir = filepath.Join(os.TempDir(), "FoldGen")
+		_ = os.MkdirAll(dir, 0o755)
+	}
 	return dir
 }
 

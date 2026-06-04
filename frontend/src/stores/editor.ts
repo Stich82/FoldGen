@@ -18,6 +18,7 @@ export const useEditorStore = defineStore('editor', () => {
   const redoStack = ref<TreeItem[][]>([])
   const drag = ref<DragState>({ sourceId: null, targetId: null, position: 'into' })
   const isDirty = ref(false)
+  const cleanDepth = ref(0)    // undoStack length that corresponds to the saved state
   const expandLevel = ref(2)   // how many levels are currently expanded
 
   const stats = computed(() => countAll(tree.value))
@@ -34,6 +35,7 @@ export const useEditorStore = defineStore('editor', () => {
     selectedId.value = null
     selectedIds.value = []
     isDirty.value = false
+    cleanDepth.value = 0
     expandLevel.value = 2
   }
 
@@ -94,6 +96,7 @@ export const useEditorStore = defineStore('editor', () => {
     tree.value = prev
     recalcDepths(tree.value)
     pruneSelection()
+    isDirty.value = undoStack.value.length !== cleanDepth.value
   }
 
   function redo() {
@@ -103,6 +106,19 @@ export const useEditorStore = defineStore('editor', () => {
     tree.value = next
     recalcDepths(tree.value)
     pruneSelection()
+    isDirty.value = undoStack.value.length !== cleanDepth.value
+  }
+
+  /** Runs a reorder fn that returns whether it actually changed anything.
+   *  Only records an undo step (and marks dirty) when something changed. */
+  function reorder(fn: (items: TreeItem[]) => boolean) {
+    const before = deepCloneItems(tree.value)
+    if (!fn(tree.value)) return
+    undoStack.value.push(before)
+    if (undoStack.value.length > MAX_UNDO) undoStack.value.shift()
+    redoStack.value = []
+    recalcDepths(tree.value)
+    isDirty.value = true
   }
 
   /** Drop selection ids that no longer exist in the tree (e.g. after undo). */
@@ -115,6 +131,7 @@ export const useEditorStore = defineStore('editor', () => {
 
   function markClean() {
     isDirty.value = false
+    cleanDepth.value = undoStack.value.length
   }
 
   // ─── Mutations (shared by toolbar, context menu, keyboard) ──────────────────
@@ -234,7 +251,7 @@ export const useEditorStore = defineStore('editor', () => {
     tree, selectedId, selectedIds, clipboard, undoStack, redoStack, drag, isDirty,
     stats, canUndo, canRedo, canPaste, hasSelection,
     setTree, isSelected, selectOnly, toggleSelect, selectRange, clearSelection,
-    expandAll, collapseAll, expandMore, collapseLess, pushUndo, undo, redo, markClean,
+    expandAll, collapseAll, expandMore, collapseLess, pushUndo, undo, redo, reorder, markClean,
     addNode, renameNode, setColor, copySelection, paste, duplicateSelection,
     removeSelection, moveSelectionInto, selectionRoots,
   }

@@ -8,7 +8,12 @@ import (
 )
 
 // CreateStructure recursively creates the folder hierarchy on disk.
+// It ensures basePath itself exists first, so an empty tree still creates the
+// project root and a root containing only files works.
 func CreateStructure(basePath string, nodes []Node) error {
+	if err := os.MkdirAll(basePath, 0o755); err != nil {
+		return err
+	}
 	for _, node := range nodes {
 		if ok, reason := ValidateName(node.Name); !ok {
 			return fmt.Errorf("nome non valido '%s': %s", node.Name, reason)

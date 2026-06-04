@@ -65,4 +65,4 @@ Releases for all platforms are produced automatically by
 
 ## 📄 License
 
-[MIT](LICENSE) © 2026 Roberto Carito
+[MIT](LICENSE) © 2026 [Roberto Carito](https://github.com/Stich82)

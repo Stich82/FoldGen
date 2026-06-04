@@ -37,9 +37,13 @@ func ValidateName(name string) (bool, string) {
 	if strings.Contains(name, "..") {
 		return false, "Il nome non può contenere '..'."
 	}
+	// Reserved-name check: Windows treats CON, CON.txt, CON.tar.gz, etc. as
+	// reserved, so compare the segment before the FIRST dot.
 	upper := strings.ToUpper(name)
-	// Strip extension for reserved name check
-	baseName := strings.TrimSuffix(upper, filepath.Ext(upper))
+	baseName := upper
+	if i := strings.IndexByte(upper, '.'); i >= 0 {
+		baseName = upper[:i]
+	}
 	if reservedNames[baseName] {
 		return false, fmt.Sprintf("'%s' è un nome riservato di Windows.", name)
 	}
@@ -62,7 +66,9 @@ func ValidateTree(nodes []Node, depth int) error {
 	return nil
 }
 
-// IsSafePath ensures target is strictly under base (prevents path traversal).
+// IsSafePath ensures target is within base (prevents path traversal). Uses
+// filepath.Rel so it is robust across platforms (Windows drive casing, clean
+// forms) instead of a brittle string-prefix comparison.
 func IsSafePath(base, target string) bool {
 	absBase, err := filepath.Abs(base)
 	if err != nil {
@@ -72,6 +78,9 @@ func IsSafePath(base, target string) bool {
 	if err != nil {
 		return false
 	}
-	return strings.HasPrefix(absTarget, absBase+string(filepath.Separator)) ||
-		absTarget == absBase
+	rel, err := filepath.Rel(absBase, absTarget)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }

@@ -15,9 +15,15 @@
       </div>
 
       <!-- Toolbar -->
-      <div class="flex items-center gap-2 px-6 py-3 shrink-0">
+      <div class="flex items-center gap-2 px-6 py-3 shrink-0 flex-wrap">
         <button class="btn-ghost text-xs" @click="selectAll(true)">Seleziona tutto</button>
         <button class="btn-ghost text-xs" @click="selectAll(false)">Deseleziona tutto</button>
+        <label class="flex items-center gap-1.5 text-xs text-white/60 cursor-pointer ml-1 select-none">
+          <input type="checkbox" v-model="foldersOnly" class="accent-[var(--accent)] w-3.5 h-3.5"/> Solo cartelle
+        </label>
+        <button class="btn-ghost text-xs" title="Copia l'albero come testo (indice file)" @click="copyPreview">
+          {{ copied ? 'Copiato ✓' : 'Copia anteprima' }}
+        </button>
         <span class="ml-auto text-xs text-white/30">{{ checkedCount }} selezionate</span>
       </div>
 
@@ -67,7 +73,9 @@ const emit = defineEmits<{
   (e: 'save', name: string, nodes: Node[]): void
 }>()
 
-const templateName = ref(props.sourcePath.split('/').pop() ?? '')
+const templateName = ref(props.sourcePath.split(/[\\/]/).pop() ?? '')
+const foldersOnly = ref(true)   // by default only folders go into the template
+const copied = ref(false)
 
 let _ctr = 0
 function buildScanTree(nodes: Node[], depth = 0, parentId: string | null = null): ScanItem[] {
@@ -123,7 +131,7 @@ function toggleExpand(id: string) {
 
 function filterNodes(items: ScanItem[]): Node[] {
   return items
-    .filter(i => i.checked)
+    .filter(i => i.checked && (!foldersOnly.value || !i.is_file))
     .map(i => {
       const n: Node = { name: i.name }
       if (i.is_file) n.is_file = true
@@ -136,6 +144,29 @@ function filterNodes(items: ScanItem[]): Node[] {
 function save() {
   if (!templateName.value.trim()) return
   emit('save', templateName.value.trim(), filterNodes(scanTree.value))
+}
+
+// Build a copyable ASCII tree of the CHECKED items (including files) — handy as
+// a project file index, regardless of the "Solo cartelle" template option.
+function buildAscii(items: ScanItem[], prefix = ''): string[] {
+  const checked = items.filter(i => i.checked)
+  const lines: string[] = []
+  checked.forEach((i, idx) => {
+    const last = idx === checked.length - 1
+    lines.push(prefix + (last ? '└─ ' : '├─ ') + i.name + (i.is_file ? '' : '/'))
+    if (i.children.length) lines.push(...buildAscii(i.children, prefix + (last ? '   ' : '│  ')))
+  })
+  return lines
+}
+
+async function copyPreview() {
+  const root = (templateName.value.trim() || 'struttura') + '/'
+  const text = [root, ...buildAscii(scanTree.value)].join('\n')
+  try {
+    await navigator.clipboard.writeText(text)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 1500)
+  } catch {}
 }
 </script>
 

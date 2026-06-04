@@ -183,9 +183,12 @@ html, body, #app {
 [data-theme="light"] .bg-white\/07 { background-color: rgba(0,0,0,0.04) !important; }
 [data-theme="light"] .bg-white\/05 { background-color: rgba(0,0,0,0.03) !important; }
 
+[data-theme="light"] .bg-white\/5 { background-color: rgba(0,0,0,0.04) !important; }
+
 /* hover:bg-white opacity utilities */
 [data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(0,0,0,0.07) !important; }
 [data-theme="light"] .hover\:bg-white\/08:hover { background-color: rgba(0,0,0,0.05) !important; }
+[data-theme="light"] .hover\:bg-white\/5:hover { background-color: rgba(0,0,0,0.05) !important; }
 
 /* border-white opacity utilities */
 [data-theme="light"] .border-white\/25 { border-color: rgba(0,0,0,0.20) !important; }
