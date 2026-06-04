@@ -22,7 +22,7 @@
 
     <!-- Add -->
     <button class="btn-ghost" :disabled="!selectedName && !selectedId" title="Aggiungi elemento (⌘N)"
-      @click="emit('add', { mode: 'child', isFile: false, anchorId: selectedId })">
+      @click="emit('add', { mode: 'child', anchorId: selectedId })">
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16M4 12h16"/>
       </svg>
@@ -144,7 +144,7 @@ const emit = defineEmits<{
   (e: 'move-down'): void
   (e: 'promote'): void
   (e: 'demote'): void
-  (e: 'add', opts: { mode: 'child' | 'sibling'; isFile: boolean; anchorId: string | null }): void
+  (e: 'add', opts: { mode: 'child' | 'sibling'; anchorId: string | null }): void
   (e: 'rename', id: string): void
   (e: 'delete', ids: string[]): void
   (e: 'preview'): void

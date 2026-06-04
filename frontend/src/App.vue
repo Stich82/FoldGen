@@ -384,11 +384,10 @@ function doPromote() { const id = selectedId.value; if (id) editorStore.reorder(
 function doDemote() { const id = selectedId.value; if (id) editorStore.reorder(t => demoteNode(t, id)) }
 
 // ─── Add dialog ───────────────────────────────────────────────────────────────
-type AddType = 'child-folder' | 'sibling' | 'child-file'
+type AddType = 'child-folder' | 'sibling'
 const addTypeOptions: { value: AddType; label: string }[] = [
   { value: 'child-folder', label: 'Figlia' },
   { value: 'sibling', label: 'Adiacente' },
-  { value: 'child-file', label: 'File' },
 ]
 const addDialog = ref({ visible: false, value: '', type: 'child-folder' as AddType, anchorId: null as string | null })
 const addInput = ref<HTMLInputElement | null>(null)
@@ -399,13 +398,12 @@ const addHint = computed(() => {
   switch (addDialog.value.type) {
     case 'child-folder': return root ? 'La cartella verrà aggiunta alla radice' : 'La cartella verrà aggiunta come figlia della selezione'
     case 'sibling': return root ? 'Verrà aggiunta alla radice' : "Verrà aggiunta dopo l'elemento selezionato, allo stesso livello"
-    case 'child-file': return root ? 'Il file verrà creato alla radice' : "Il file verrà creato all'interno della selezione"
   }
 })
-const addPlaceholder = computed(() => addDialog.value.type === 'child-file' ? 'es. README.md' : 'es. NomeCartella')
+const addPlaceholder = 'es. NomeCartella'
 
-function openAdd(opts: { mode: 'child' | 'sibling'; isFile: boolean; anchorId: string | null }) {
-  const type: AddType = opts.mode === 'sibling' ? 'sibling' : (opts.isFile ? 'child-file' : 'child-folder')
+function openAdd(opts: { mode: 'child' | 'sibling'; anchorId: string | null }) {
+  const type: AddType = opts.mode === 'sibling' ? 'sibling' : 'child-folder'
   addDialog.value = { visible: true, value: '', type, anchorId: opts.anchorId ?? selectedId.value }
   addError.value = ''
   nextTick(() => addInput.value?.focus())
@@ -418,7 +416,7 @@ async function confirmAdd() {
   if (!name || addError.value) return
   editorStore.addNode({
     name,
-    isFile: addDialog.value.type === 'child-file',
+    isFile: false,
     mode: addDialog.value.type === 'sibling' ? 'sibling' : 'child',
     anchorId: addDialog.value.anchorId,
   })
@@ -574,7 +572,7 @@ function onGlobalKey(e: KeyboardEvent) {
   if (inEditable) return
 
   if (cmd && e.key === 'a') { e.preventDefault(); editorStore.selectRange(flattenVisible(tree.value).map(n => n.id)) }
-  else if (cmd && e.key === 'n') { e.preventDefault(); openAdd({ mode: 'child', isFile: false, anchorId: selectedId.value }) }
+  else if (cmd && e.key === 'n') { e.preventDefault(); openAdd({ mode: 'child', anchorId: selectedId.value }) }
   else if (cmd && e.key === 'c') { e.preventDefault(); editorStore.copySelection() }
   else if (cmd && e.key === 'v') { e.preventDefault(); editorStore.paste() }
   else if (cmd && e.key === 'd') { e.preventDefault(); editorStore.duplicateSelection() }

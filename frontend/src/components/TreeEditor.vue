@@ -61,13 +61,10 @@
         :style="{ top: ctx.y + 'px', left: ctx.x + 'px' }"
       >
         <template v-if="ctxSub === 'none'">
-          <button v-if="!ctx.isFile" class="ctx-item" @click="act(() => props.openAdd({ mode: 'child', isFile: false, anchorId: ctx.id }))">
+          <button v-if="!ctx.isFile" class="ctx-item" @click="act(() => props.openAdd({ mode: 'child', anchorId: ctx.id }))">
             <span class="ctx-ico">+</span> Aggiungi cartella figlia
           </button>
-          <button v-if="!ctx.isFile" class="ctx-item" @click="act(() => props.openAdd({ mode: 'child', isFile: true, anchorId: ctx.id }))">
-            <span class="ctx-ico">+</span> Aggiungi file
-          </button>
-          <button class="ctx-item" @click="act(() => props.openAdd({ mode: 'sibling', isFile: false, anchorId: ctx.id }))">
+          <button class="ctx-item" @click="act(() => props.openAdd({ mode: 'sibling', anchorId: ctx.id }))">
             <span class="ctx-ico">⤢</span> Aggiungi adiacente
           </button>
           <div class="ctx-sep"/>
@@ -160,7 +157,7 @@ const PALETTE = ['#4F8EF7', '#A78BFA', '#34D399', '#FB923C', '#F87171', '#FBBF24
 
 const props = defineProps<{
   templateName: string | null
-  openAdd: (opts: { mode: 'child' | 'sibling'; isFile: boolean; anchorId: string | null }) => void
+  openAdd: (opts: { mode: 'child' | 'sibling'; anchorId: string | null }) => void
   openRename: (id: string) => void
   openDelete: (ids: string[]) => void
 }>()
