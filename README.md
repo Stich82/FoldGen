@@ -44,7 +44,7 @@ Templates and settings are stored per-user (`~/.config/FoldGen`,
 
 ## 🛠️ Build from source
 
-Requirements: **Go 1.22+**, **Node 20+**, and the
+Requirements: **Go 1.23+**, **Node 20+**, and the
 [Wails v2 CLI](https://wails.io/docs/gettingstarted/installation).
 
 ```bash
