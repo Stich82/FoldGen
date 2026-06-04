@@ -48,7 +48,9 @@ export const useTemplatesStore = defineStore('templates', () => {
 
   async function duplicate(name: string) {
     const tpl = await DuplicateTemplate(name)
-    list.value.push(tpl)
+    const idx = list.value.findIndex(t => t.template_name === tpl.template_name)
+    if (idx >= 0) list.value[idx] = tpl
+    else list.value.push(tpl)
     selectedName.value = tpl.template_name
   }
 
