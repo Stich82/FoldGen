@@ -3,7 +3,7 @@
 import {backend} from '../models';
 import {options} from '../models';
 
-export function CreateFolders(arg1:string,arg2:string,arg3:Array<backend.Node>):Promise<void>;
+export function CreateFolders(arg1:string,arg2:string,arg3:Array<backend.Node>):Promise<number>;
 
 export function DeleteTemplate(arg1:string):Promise<void>;
 

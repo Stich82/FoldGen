@@ -105,12 +105,15 @@ func (a *App) ScanFolder(path string, includeHidden bool, maxDepth int) ([]backe
 
 // ─── Generation ──────────────────────────────────────────────────────────────
 
-func (a *App) CreateFolders(projectName, outputPath string, tree []backend.Node) error {
+// CreateFolders creates the folder hierarchy on disk and returns the number of
+// file nodes that were skipped (FoldGen never creates files — see
+// backend.CreateStructure), so the frontend can warn the user.
+func (a *App) CreateFolders(projectName, outputPath string, tree []backend.Node) (int, error) {
 	if ok, reason := backend.ValidateName(projectName); !ok {
-		return fmt.Errorf("nome progetto non valido '%s': %s", projectName, reason)
+		return 0, fmt.Errorf("nome progetto non valido '%s': %s", projectName, reason)
 	}
 	if err := backend.ValidateTree(tree, 0); err != nil {
-		return err
+		return 0, err
 	}
 	target := filepath.Join(outputPath, projectName)
 	return backend.CreateStructure(target, tree)

@@ -290,7 +290,7 @@ watch(isDirty, (d) => { SetDirty(d).catch(() => {}) })
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const toast = ref<InstanceType<typeof Toast> | null>(null)
-function notify(msg: string, icon = '✅') { toast.value?.show(msg, icon) }
+function notify(msg: string, icon = '✅', duration?: number) { toast.value?.show(msg, icon, duration) }
 /** Extracts a readable message from a Wails/JS rejection. */
 function errMsg(e: any): string { return e?.message ?? (typeof e === 'string' ? e : String(e)) }
 
@@ -496,7 +496,7 @@ function createFolders(projectName: string, outputPath: string) {
   if (!projectName.trim() || !outputPath.trim()) return
   genConfirm.value = {
     visible: true, title: 'Creare le cartelle?', path: joinPath(outputPath, projectName),
-    note: 'Eventuali file con lo stesso nome verranno sovrascritti.',
+    note: 'Vengono create solo le cartelle. I file presenti nel template sono ignorati; le cartelle esistenti non vengono modificate.',
     action: () => runCreateFolders(projectName, outputPath),
   }
 }
@@ -518,8 +518,13 @@ function confirmGen() { const a = genConfirm.value.action; genConfirm.value.visi
 
 async function runCreateFolders(projectName: string, outputPath: string) {
   try {
-    await CreateFolders(projectName, outputPath, itemsToNodes(tree.value) as any)
-    notify(`Cartelle create in "${joinPath(outputPath, projectName)}"`, '📁')
+    const dest = joinPath(outputPath, projectName)
+    const skipped = await CreateFolders(projectName, outputPath, itemsToNodes(tree.value) as any)
+    if (skipped > 0) {
+      notify(`Create solo le cartelle in "${dest}". ${skipped} file ignorati (FoldGen non crea file).`, '⚠️', 8000)
+    } else {
+      notify(`Cartelle create in "${dest}"`, '📁', 5000)
+    }
   } catch (e: any) { notify(errMsg(e), '❌') }
 }
 async function runGenerate(kind: 'bat' | 'sh', projectName: string, outputPath: string) {

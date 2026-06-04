@@ -10,34 +10,43 @@ import (
 // CreateStructure recursively creates the folder hierarchy on disk.
 // It ensures basePath itself exists first, so an empty tree still creates the
 // project root and a root containing only files works.
-func CreateStructure(basePath string, nodes []Node) error {
+//
+// SAFETY: FoldGen never writes files to disk. File nodes (IsFile == true) are
+// never created — they are skipped and counted. This guarantees we can never
+// truncate or overwrite a real existing file. Only os.MkdirAll is used, which
+// is non-destructive (an existing folder is left untouched).
+//
+// Returns the number of file nodes that were skipped, so the caller can warn
+// the user that those entries were ignored.
+func CreateStructure(basePath string, nodes []Node) (int, error) {
 	if err := os.MkdirAll(basePath, 0o755); err != nil {
-		return err
+		return 0, err
 	}
+	skipped := 0
 	for _, node := range nodes {
 		if ok, reason := ValidateName(node.Name); !ok {
-			return fmt.Errorf("nome non valido '%s': %s", node.Name, reason)
+			return skipped, fmt.Errorf("nome non valido '%s': %s", node.Name, reason)
+		}
+		// Never create files: skip and count them. We don't even touch the disk
+		// for file nodes, so no path/traversal check is needed here.
+		if node.IsFile {
+			skipped++
+			continue
 		}
 		target := filepath.Join(basePath, node.Name)
 		if !IsSafePath(basePath, target) {
-			return fmt.Errorf("path traversal rilevato: %s", node.Name)
+			return skipped, fmt.Errorf("path traversal rilevato: %s", node.Name)
 		}
-		if node.IsFile {
-			f, err := os.Create(target)
-			if err != nil {
-				return err
-			}
-			f.Close()
-		} else {
-			if err := os.MkdirAll(target, 0o755); err != nil {
-				return err
-			}
-			if err := CreateStructure(target, node.Children); err != nil {
-				return err
-			}
+		if err := os.MkdirAll(target, 0o755); err != nil {
+			return skipped, err
+		}
+		childSkipped, err := CreateStructure(target, node.Children)
+		skipped += childSkipped
+		if err != nil {
+			return skipped, err
 		}
 	}
-	return nil
+	return skipped, nil
 }
 
 // GenerateBat writes a Windows .bat file that recreates the folder structure.
@@ -72,11 +81,11 @@ func batEscape(s string) string {
 func writeBatLines(sb *strings.Builder, nodes []Node, depth int) {
 	indent := strings.Repeat("    ", depth)
 	for _, node := range nodes {
-		safe := batEscape(node.Name)
+		// SAFETY: generated scripts create folders only, never files.
 		if node.IsFile {
-			sb.WriteString(fmt.Sprintf("%stype nul > \"%s\"\r\n", indent, safe))
 			continue
 		}
+		safe := batEscape(node.Name)
 		sb.WriteString(fmt.Sprintf("%smd \"%s\"\r\n", indent, safe))
 		if len(node.Children) > 0 {
 			sb.WriteString(fmt.Sprintf("%scd \"%s\"\r\n", indent, safe))
@@ -115,15 +124,15 @@ func sanitizeSh(s string) string {
 
 func writeShLines(sb *strings.Builder, nodes []Node, parentPath string) {
 	for _, node := range nodes {
+		// SAFETY: generated scripts create folders only, never files.
+		if node.IsFile {
+			continue
+		}
 		safe := sanitizeSh(node.Name)
 		path := parentPath + "/" + safe
-		if node.IsFile {
-			sb.WriteString(fmt.Sprintf("touch '%s'\n", path))
-		} else {
-			sb.WriteString(fmt.Sprintf("mkdir -p '%s'\n", path))
-			if len(node.Children) > 0 {
-				writeShLines(sb, node.Children, path)
-			}
+		sb.WriteString(fmt.Sprintf("mkdir -p '%s'\n", path))
+		if len(node.Children) > 0 {
+			writeShLines(sb, node.Children, path)
 		}
 	}
 }
