@@ -583,18 +583,19 @@ function onGlobalKey(e: KeyboardEvent) {
   else if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); doDemote() }
 }
 
-async function saveCurrentTemplate() {
-  if (!selectedName.value) return
+async function saveCurrentTemplate(): Promise<boolean> {
+  if (!selectedName.value) return true
   try {
     await tplStore.save(selectedName.value, itemsToNodes(tree.value))
     editorStore.markClean()
     notify('Template salvato')
-  } catch (e: any) { notify(errMsg(e), '❌') }
+    return true
+  } catch (e: any) { notify(errMsg(e), '❌'); return false }
 }
 
 // ─── Close handling ─────────────────────────────────────────────────────────────
 const showCloseDialog = ref(false)
-async function saveAndQuit() { await saveCurrentTemplate(); quitNow() }
+async function saveAndQuit() { if (await saveCurrentTemplate()) quitNow() }
 function quitNow() { showCloseDialog.value = false; QuitApp().catch(() => {}) }
 
 // ─── Unsaved-changes guard ─────────────────────────────────────────────────────

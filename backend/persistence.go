@@ -3,6 +3,7 @@ package backend
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -140,10 +141,12 @@ func RenameTemplate(oldName, newName string) error {
 	}
 	for _, t := range templates {
 		if t.Name == oldName {
-			if err := DeleteTemplate(oldName); err != nil {
+			// Write the new file first so a crash between the two ops leaves
+			// the old file intact rather than losing the template entirely.
+			if err := SaveTemplate(newName, t.Tree); err != nil {
 				return err
 			}
-			return SaveTemplate(newName, t.Tree)
+			return DeleteTemplate(oldName)
 		}
 	}
 	return errors.New("template non trovato: " + oldName)
@@ -154,16 +157,25 @@ func DuplicateTemplate(name string) (Template, error) {
 	if err != nil {
 		return Template{}, err
 	}
-	for _, t := range templates {
-		if t.Name == name {
-			newName := name + " (copia)"
-			if err := SaveTemplate(newName, t.Tree); err != nil {
-				return Template{}, err
-			}
-			return Template{Name: newName, Tree: t.Tree}, nil
+	existing := make(map[string]bool, len(templates))
+	var src *Template
+	for i := range templates {
+		existing[templates[i].Name] = true
+		if templates[i].Name == name {
+			src = &templates[i]
 		}
 	}
-	return Template{}, errors.New("template non trovato: " + name)
+	if src == nil {
+		return Template{}, errors.New("template non trovato: " + name)
+	}
+	newName := name + " (copia)"
+	for i := 2; existing[newName]; i++ {
+		newName = fmt.Sprintf("%s (copia %d)", name, i)
+	}
+	if err := SaveTemplate(newName, src.Tree); err != nil {
+		return Template{}, err
+	}
+	return Template{Name: newName, Tree: src.Tree}, nil
 }
 
 func ImportTemplate(path string) (Template, error) {
@@ -203,7 +215,10 @@ func sanitizeFilename(name string) string {
 	)
 	s := replacer.Replace(name)
 	if len(s) > 100 {
-		s = s[:100]
+		runes := []rune(s)
+		if len(runes) > 100 {
+			s = string(runes[:100])
+		}
 	}
 	return s
 }

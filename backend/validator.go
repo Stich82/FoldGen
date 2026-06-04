@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	invalidCharsRe  = regexp.MustCompile(`[\\/:*?"<>|\x00-\x1f]`)
+	invalidCharsRe  = regexp.MustCompile(`[\\/:*?"<>|&%^\x00-\x1f]`)
 	reservedNames   = map[string]bool{
 		"CON": true, "PRN": true, "AUX": true, "NUL": true,
 		"COM1": true, "COM2": true, "COM3": true, "COM4": true,
@@ -29,7 +29,7 @@ func ValidateName(name string) (bool, string) {
 		return false, "Il nome supera i 200 caratteri."
 	}
 	if invalidCharsRe.MatchString(name) {
-		return false, `Il nome contiene caratteri non validi: \ / : * ? " < > |`
+		return false, `Il nome contiene caratteri non validi: \ / : * ? " < > | & % ^`
 	}
 	if strings.HasSuffix(name, ".") || strings.HasSuffix(name, " ") {
 		return false, "Il nome non può terminare con '.' o spazio."
