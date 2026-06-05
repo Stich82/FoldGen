@@ -99,14 +99,15 @@
     <!-- New template dialog -->
     <Teleport to="body">
       <div v-if="newDialog.visible" class="modal-overlay" @click.self="newDialog.visible = false">
-        <div class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
+        <div ref="newPanel" tabindex="-1" @keydown.esc="newDialog.visible = false"
+          class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
           <h3 class="text-sm font-semibold mb-1">Nuovo template</h3>
           <p class="text-xs text-white/40 mb-3">Scegli un nome per il nuovo template</p>
           <input v-model="newDialog.value" class="input-base mb-4" placeholder="es. Progetto Web"
             @keydown.enter="confirmNew" @keydown.esc="newDialog.visible = false" ref="newInput"/>
           <div class="flex gap-2 justify-end">
             <button class="btn-ghost" @click="newDialog.visible = false">Annulla</button>
-            <button class="btn-accent" @click="confirmNew">Crea</button>
+            <button class="btn-accent" :disabled="!newDialog.value.trim()" @click="confirmNew">Crea</button>
           </div>
         </div>
       </div>
@@ -115,12 +116,13 @@
     <!-- Rename dialog -->
     <Teleport to="body">
       <div v-if="renameDialog.visible" class="modal-overlay" @click.self="renameDialog.visible = false">
-        <div class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
+        <div ref="renamePanel" tabindex="-1" @keydown.esc="renameDialog.visible = false"
+          class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
           <h3 class="text-sm font-semibold mb-3">Rinomina template</h3>
           <input v-model="renameDialog.value" class="input-base mb-4" @keydown.enter="confirmRename" @keydown.esc="renameDialog.visible = false" ref="renameInput"/>
           <div class="flex gap-2 justify-end">
             <button class="btn-ghost" @click="renameDialog.visible = false">Annulla</button>
-            <button class="btn-accent" @click="confirmRename">Salva</button>
+            <button class="btn-accent" :disabled="!renameDialog.value.trim()" @click="confirmRename">Salva</button>
           </div>
         </div>
       </div>
@@ -144,6 +146,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 import { useTemplatesStore } from '@/stores/templates'
 import { storeToRefs } from 'pinia'
 
@@ -174,6 +177,8 @@ function select(name: string) {
 
 const newDialog = ref({ visible: false, value: '' })
 const newInput = ref<HTMLInputElement | null>(null)
+const newPanel = ref<HTMLElement | null>(null)
+useFocusTrap(newPanel, computed(() => newDialog.value.visible), () => newInput.value)
 
 function openNewDialog() {
   newDialog.value = { visible: true, value: '' }
@@ -193,6 +198,8 @@ const ctx = ref({ visible: false, x: 0, y: 0, name: '' })
 const renameDialog = ref({ visible: false, value: '', oldName: '' })
 const deleteDialog = ref({ visible: false, name: '' })
 const renameInput = ref<HTMLInputElement | null>(null)
+const renamePanel = ref<HTMLElement | null>(null)
+useFocusTrap(renamePanel, computed(() => renameDialog.value.visible), () => renameInput.value)
 
 function openCtx(e: MouseEvent, name: string) {
   ctx.value = { visible: true, x: e.clientX, y: e.clientY, name }

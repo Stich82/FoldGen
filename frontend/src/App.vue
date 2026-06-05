@@ -88,7 +88,8 @@
     <!-- Add element dialog -->
     <Teleport to="body">
       <div v-if="addDialog.visible" class="modal-overlay" @click.self="addDialog.visible = false">
-        <div class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
+        <div ref="addPanel" tabindex="-1" @keydown.esc="addDialog.visible = false"
+          class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
           <h3 class="text-sm font-semibold mb-3">Nuovo elemento</h3>
           <div class="flex rounded-lg overflow-hidden border border-white/10 mb-4">
             <button
@@ -113,7 +114,8 @@
     <!-- Rename dialog -->
     <Teleport to="body">
       <div v-if="renameDialog.visible" class="modal-overlay" @click.self="renameDialog.visible = false">
-        <div class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
+        <div ref="renamePanel" tabindex="-1" @keydown.esc="renameDialog.visible = false"
+          class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
           <h3 class="text-sm font-semibold mb-3">Rinomina</h3>
           <input v-model="renameDialog.value" class="input-base mb-1.5"
             @keydown.enter="confirmRename" @keydown.esc="renameDialog.visible = false" ref="renameInput"/>
@@ -393,6 +395,8 @@ const addTypeOptions: { value: AddType; label: string }[] = [
 ]
 const addDialog = ref({ visible: false, value: '', type: 'child-folder' as AddType, anchorId: null as string | null })
 const addInput = ref<HTMLInputElement | null>(null)
+const addPanel = ref<HTMLElement | null>(null)
+useFocusTrap(addPanel, computed(() => addDialog.value.visible), () => addInput.value)
 const addError = ref('')
 
 const addHint = computed(() => {
@@ -428,6 +432,8 @@ async function confirmAdd() {
 // ─── Rename dialog ──────────────────────────────────────────────────────────────
 const renameDialog = ref({ visible: false, value: '', id: '' })
 const renameInput = ref<HTMLInputElement | null>(null)
+const renamePanel = ref<HTMLElement | null>(null)
+useFocusTrap(renamePanel, computed(() => renameDialog.value.visible), () => renameInput.value)
 const renameError = ref('')
 
 function openRename(id: string) {

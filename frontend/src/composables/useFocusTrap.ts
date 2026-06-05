@@ -21,7 +21,13 @@ import { watch, type Ref } from 'vue'
  *
  * Al termine ripristina il focus all'elemento che lo aveva in precedenza.
  */
-export function useFocusTrap(container: Ref<HTMLElement | null>, active: Ref<boolean>) {
+export function useFocusTrap(
+  container: Ref<HTMLElement | null>,
+  active: Ref<boolean>,
+  // Elemento da mettere a fuoco all'apertura (es. l'input di un dialog). Se assente
+  // si usa il primo focusabile. Getter per evitare problemi di varianza dei Ref.
+  initialFocus?: () => HTMLElement | null | undefined,
+) {
   let prev: HTMLElement | null = null
   let marked: HTMLElement | null = null
 
@@ -40,8 +46,12 @@ export function useFocusTrap(container: Ref<HTMLElement | null>, active: Ref<boo
   function focusWithMark(el: HTMLElement) {
     clearMark()
     el.focus()
-    el.classList.add('kbd-focus')
-    marked = el
+    // input/textarea/select hanno già il ring nativo :focus (funziona anche col focus
+    // programmatico): niente kbd-focus, così si evita il doppio anello.
+    if (!el.matches('input, textarea, select')) {
+      el.classList.add('kbd-focus')
+      marked = el
+    }
   }
 
   function onKeydown(e: KeyboardEvent) {
@@ -78,8 +88,8 @@ export function useFocusTrap(container: Ref<HTMLElement | null>, active: Ref<boo
       document.addEventListener('keydown', onKeydown, true)
       document.addEventListener('pointerdown', onPointerdown, true)
       requestAnimationFrame(() => {
-        const first = focusable()[0]
-        if (first) focusWithMark(first)
+        const target = initialFocus?.() ?? focusable()[0]
+        if (target) focusWithMark(target)
       })
     } else {
       document.removeEventListener('keydown', onKeydown, true)
