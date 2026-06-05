@@ -66,6 +66,10 @@ html, body, #app {
   cursor: pointer;
 }
 .btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Anello applicato dal focus-trap via classe esplicita: WKWebView non attiva
+   :focus-visible sul focus programmatico, quindi marchiamo l'elemento a mano. */
+.kbd-focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn-ghost  { @apply btn; color: rgba(255,255,255,0.7); background: transparent; }
 .btn-ghost:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.95); }
 .btn-surface { @apply btn; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); }

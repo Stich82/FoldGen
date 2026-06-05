@@ -12,10 +12,18 @@ import { watch, type Ref } from 'vue'
  * - Se il focus sfugge fuori dal pannello, viene recuperato e il tasto bloccato,
  *   così nemmeno la prima freccia raggiunge l'albero sottostante.
  *
+ * Anello di focus visibile: WKWebView (WebKit/Safari, usato da Wails su macOS) NON
+ * applica `:focus-visible` agli elementi messi a fuoco programmaticamente via
+ * `.focus()`. Per questo il trap applica una classe esplicita `kbd-focus`
+ * all'elemento che mette a fuoco (e la toglie dal precedente). Un click del mouse
+ * (`pointerdown`) la rimuove, così l'anello compare solo durante la navigazione da
+ * tastiera, mai col mouse.
+ *
  * Al termine ripristina il focus all'elemento che lo aveva in precedenza.
  */
 export function useFocusTrap(container: Ref<HTMLElement | null>, active: Ref<boolean>) {
   let prev: HTMLElement | null = null
+  let marked: HTMLElement | null = null
 
   const focusable = () =>
     Array.from(
@@ -24,36 +32,59 @@ export function useFocusTrap(container: Ref<HTMLElement | null>, active: Ref<boo
       ) ?? [],
     ).filter((el) => !el.hasAttribute('disabled'))
 
+  function clearMark() {
+    marked?.classList.remove('kbd-focus')
+    marked = null
+  }
+
+  function focusWithMark(el: HTMLElement) {
+    clearMark()
+    el.focus()
+    el.classList.add('kbd-focus')
+    marked = el
+  }
+
   function onKeydown(e: KeyboardEvent) {
     if (!active.value || !container.value) return
-    const els = focusable()
-    if (!els.length) return
-    const first = els[0]
-    const last = els[els.length - 1]
     const cur = document.activeElement as HTMLElement
     // Focus sfuggito fuori dal modal (es. sull'albero): riportalo dentro e blocca il tasto.
     if (!container.value.contains(cur)) {
       e.preventDefault()
-      first.focus()
+      const first = focusable()[0]
+      if (first) focusWithMark(first)
       return
     }
     if (e.key !== 'Tab') return
-    if (e.shiftKey && cur === first) {
-      e.preventDefault()
-      last.focus()
-    } else if (!e.shiftKey && cur === last) {
-      e.preventDefault()
-      first.focus()
+    const els = focusable()
+    if (!els.length) return
+    // Controllo totale del Tab dentro il modal: niente traversal nativo del browser.
+    e.preventDefault()
+    const idx = els.indexOf(cur) // -1 se il focus è sul pannello stesso o su un punto neutro
+    if (idx === -1) {
+      focusWithMark(els[e.shiftKey ? els.length - 1 : 0])
+      return
     }
+    focusWithMark(els[(idx + (e.shiftKey ? -1 : 1) + els.length) % els.length])
+  }
+
+  // Interazione col mouse: rimuove l'anello da tastiera.
+  function onPointerdown() {
+    clearMark()
   }
 
   watch(active, (on) => {
     if (on) {
       prev = document.activeElement as HTMLElement
       document.addEventListener('keydown', onKeydown, true)
-      requestAnimationFrame(() => focusable()[0]?.focus())
+      document.addEventListener('pointerdown', onPointerdown, true)
+      requestAnimationFrame(() => {
+        const first = focusable()[0]
+        if (first) focusWithMark(first)
+      })
     } else {
       document.removeEventListener('keydown', onKeydown, true)
+      document.removeEventListener('pointerdown', onPointerdown, true)
+      clearMark()
       prev?.focus()
       prev = null
     }
