@@ -233,11 +233,13 @@ export const useEditorStore = defineStore('editor', () => {
     selectRange(newIds)
   }
 
-  function removeSelection(fallbackId?: string) {
-    const ids = selectionRoots(fallbackId)
-    if (!ids.length) return
+  /** Rimuove esattamente gli `ids` passati (congelati al momento della richiesta),
+   *  indipendentemente dalla selezione corrente. Opera solo sull'albero in memoria. */
+  function removeIds(ids: string[]) {
+    const roots = topLevelSelected(tree.value, ids)
+    if (!roots.length) return
     pushUndo()
-    for (const id of ids) detach(tree.value, id)
+    for (const id of roots) detach(tree.value, id)
     clearSelection()
   }
 
@@ -263,6 +265,6 @@ export const useEditorStore = defineStore('editor', () => {
     setTree, isSelected, selectOnly, toggleSelect, selectRange, clearSelection,
     expandAll, collapseAll, expandMore, collapseLess, pushUndo, undo, redo, reorder, markClean,
     addNode, renameNode, setColor, copySelection, paste, duplicateSelection,
-    removeSelection, moveSelectionInto, selectionRoots,
+    removeIds, moveSelectionInto, selectionRoots,
   }
 })

@@ -129,7 +129,8 @@
     <!-- Delete confirmation -->
     <Teleport to="body">
       <div v-if="deleteDialog.visible" class="modal-overlay" @click.self="deleteDialog.visible = false">
-        <div class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
+        <div ref="deletePanel" tabindex="-1" @keydown.esc="deleteDialog.visible = false"
+          class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
           <h3 class="text-sm font-semibold mb-2">Elimina</h3>
           <p class="text-xs text-white/60 mb-4">{{ deleteDialog.label }} Usa Annulla (⌘Z) per ripristinare.</p>
           <div class="flex gap-2 justify-end">
@@ -253,6 +254,7 @@ import {
   nodesToItems, itemsToNodes, toAsciiTree, flattenVisible,
   moveUp, moveDown, promote, demoteNode, findById,
 } from '@/composables/useTree'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 import type { Node } from '@/types'
 
 import {
@@ -445,16 +447,18 @@ function confirmRename() {
 }
 
 // ─── Delete dialog ────────────────────────────────────────────────────────────
-const deleteDialog = ref({ visible: false, label: '' })
+const deleteDialog = ref({ visible: false, label: '', ids: [] as string[] })
+const deletePanel = ref<HTMLElement | null>(null)
+useFocusTrap(deletePanel, computed(() => deleteDialog.value.visible))
 function openDelete(ids: string[]) {
   if (!ids.length) return
   const label = ids.length === 1
     ? `Eliminare "${findById(tree.value, ids[0])?.name ?? ''}"?`
     : `Eliminare ${ids.length} elementi?`
-  deleteDialog.value = { visible: true, label }
+  deleteDialog.value = { visible: true, label, ids: [...ids] }
 }
 function confirmDelete() {
-  editorStore.removeSelection()
+  editorStore.removeIds(deleteDialog.value.ids)
   deleteDialog.value.visible = false
 }
 
