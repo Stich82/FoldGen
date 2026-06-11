@@ -131,7 +131,8 @@
     <!-- Delete confirmation dialog -->
     <Teleport to="body">
       <div v-if="deleteDialog.visible" class="modal-overlay" @click.self="deleteDialog.visible = false">
-        <div class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
+        <div ref="deletePanel" tabindex="-1" @keydown.esc="deleteDialog.visible = false"
+          class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
           <h3 class="text-sm font-semibold mb-2">Elimina template</h3>
           <p class="text-xs text-white/60 mb-4">Eliminare <span class="text-white font-medium">{{ deleteDialog.name }}</span>? L'azione non può essere annullata.</p>
           <div class="flex gap-2 justify-end">
@@ -197,6 +198,8 @@ function confirmNew() {
 const ctx = ref({ visible: false, x: 0, y: 0, name: '' })
 const renameDialog = ref({ visible: false, value: '', oldName: '' })
 const deleteDialog = ref({ visible: false, name: '' })
+const deletePanel = ref<HTMLElement | null>(null)
+useFocusTrap(deletePanel, computed(() => deleteDialog.value.visible))
 const renameInput = ref<HTMLInputElement | null>(null)
 const renamePanel = ref<HTMLElement | null>(null)
 useFocusTrap(renamePanel, computed(() => renameDialog.value.visible), () => renameInput.value)

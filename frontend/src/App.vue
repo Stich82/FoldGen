@@ -146,7 +146,8 @@
     <!-- ASCII tree preview -->
     <Teleport to="body">
       <div v-if="showPreview" class="modal-overlay" @click.self="showPreview = false">
-        <div class="glass-strong rounded-2xl shadow-glass w-[460px] max-h-[80vh] flex flex-col animate-fade-in overflow-hidden">
+        <div ref="previewPanel" tabindex="-1" @keydown.esc="showPreview = false"
+          class="glass-strong rounded-2xl shadow-glass w-[460px] max-h-[80vh] flex flex-col animate-fade-in overflow-hidden">
           <div class="flex items-center justify-between px-6 pt-5 pb-3 border-b border-white/10">
             <h2 class="text-base font-semibold">Anteprima struttura</h2>
             <button class="btn-ghost !p-1.5" @click="showPreview = false">
@@ -166,7 +167,8 @@
     <!-- Generation destination confirmation -->
     <Teleport to="body">
       <div v-if="genConfirm.visible" class="modal-overlay" @click.self="genConfirm.visible = false">
-        <div class="glass-strong rounded-2xl shadow-glass p-6 w-96 animate-fade-in">
+        <div ref="genPanel" tabindex="-1" @keydown.esc="genConfirm.visible = false"
+          class="glass-strong rounded-2xl shadow-glass p-6 w-96 animate-fade-in">
           <h3 class="text-sm font-semibold mb-2">{{ genConfirm.title }}</h3>
           <p class="text-xs text-white/60 mb-2">Percorso di destinazione:</p>
           <p class="text-xs font-mono bg-white/5 rounded-lg px-3 py-2 mb-2 break-all">{{ genConfirm.path }}</p>
@@ -183,7 +185,8 @@
     <!-- Unsaved changes when switching template -->
     <Teleport to="body">
       <div v-if="showSwitchDialog" class="modal-overlay">
-        <div class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
+        <div ref="switchPanel" tabindex="-1" @keydown.esc="showSwitchDialog = false"
+          class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
           <h3 class="text-sm font-semibold mb-2">Modifiche non salvate</h3>
           <p class="text-xs text-white/60 mb-4">"{{ selectedName }}" ha modifiche non salvate. Vuoi salvarle prima di continuare?</p>
           <div class="flex flex-col gap-2">
@@ -198,7 +201,8 @@
     <!-- Unsaved-changes on close -->
     <Teleport to="body">
       <div v-if="showCloseDialog" class="modal-overlay">
-        <div class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
+        <div ref="closePanel" tabindex="-1" @keydown.esc="showCloseDialog = false"
+          class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
           <h3 class="text-sm font-semibold mb-2">Modifiche non salvate</h3>
           <p class="text-xs text-white/60 mb-4">Ci sono modifiche non salvate in "{{ selectedName }}". Vuoi salvarle prima di uscire?</p>
           <div class="flex flex-col gap-2">
@@ -213,7 +217,8 @@
     <!-- Help -->
     <Teleport to="body">
       <div v-if="showHelp" class="modal-overlay" @click.self="showHelp = false">
-        <div class="glass-strong rounded-2xl shadow-glass w-96 animate-fade-in overflow-hidden">
+        <div ref="helpPanel" tabindex="-1" @keydown.esc="showHelp = false"
+          class="glass-strong rounded-2xl shadow-glass w-96 animate-fade-in overflow-hidden">
           <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/10">
             <h2 class="text-base font-semibold">Scorciatoie tastiera</h2>
             <button class="btn-ghost !p-1.5" @click="showHelp = false">
@@ -480,6 +485,8 @@ async function validate(name: string): Promise<string> {
 
 // ─── ASCII preview ──────────────────────────────────────────────────────────────
 const showPreview = ref(false)
+const previewPanel = ref<HTMLElement | null>(null)
+useFocusTrap(previewPanel, computed(() => showPreview.value))
 const copied = ref(false)
 const asciiPreview = computed(() =>
   tree.value.length ? toAsciiTree(tree.value, selectedName.value ?? undefined) : '(vuoto)'
@@ -492,6 +499,8 @@ async function copyPreview() {
 const genConfirm = ref<{ visible: boolean; title: string; path: string; note: string; action: () => void }>({
   visible: false, title: '', path: '', note: '', action: () => {},
 })
+const genPanel = ref<HTMLElement | null>(null)
+useFocusTrap(genPanel, computed(() => genConfirm.value.visible))
 
 /** Joins a base path and a name using the separator already in use (so the
  *  preview shows consistent slashes on both Windows and Unix). */
@@ -546,6 +555,8 @@ async function runGenerate(kind: 'bat' | 'sh', projectName: string, outputPath: 
 // ─── Modals ───────────────────────────────────────────────────────────────────
 const showSettings = ref(false)
 const showHelp = ref(false)
+const helpPanel = ref<HTMLElement | null>(null)
+useFocusTrap(helpPanel, computed(() => showHelp.value))
 
 const shortcuts: [string, string][] = [
   ['⌘S', 'Salva template'],
@@ -608,6 +619,8 @@ async function saveCurrentTemplate(): Promise<boolean> {
 
 // ─── Close handling ─────────────────────────────────────────────────────────────
 const showCloseDialog = ref(false)
+const closePanel = ref<HTMLElement | null>(null)
+useFocusTrap(closePanel, computed(() => showCloseDialog.value))
 async function saveAndQuit() { if (await saveCurrentTemplate()) quitNow() }
 function quitNow() { showCloseDialog.value = false; QuitApp().catch(() => {}) }
 
@@ -615,6 +628,8 @@ function quitNow() { showCloseDialog.value = false; QuitApp().catch(() => {}) }
 // Any action that would replace the current editor tree (switch / new / import /
 // duplicate) goes through this guard so unsaved work is never silently lost.
 const showSwitchDialog = ref(false)
+const switchPanel = ref<HTMLElement | null>(null)
+useFocusTrap(switchPanel, computed(() => showSwitchDialog.value))
 const pendingAction = ref<null | (() => void | Promise<void>)>(null)
 
 function guardUnsaved(action: () => void | Promise<void>) {
