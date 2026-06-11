@@ -1,6 +1,6 @@
 <template>
   <div class="modal-overlay" @click.self="attemptClose">
-    <div class="glass-strong rounded-2xl shadow-glass w-[400px] animate-fade-in overflow-hidden">
+    <div ref="settingsPanel" tabindex="-1" class="glass-strong rounded-2xl shadow-glass w-[400px] animate-fade-in overflow-hidden">
       <!-- Header -->
       <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/10">
         <h2 class="text-base font-semibold">Impostazioni</h2>
@@ -165,7 +165,7 @@
 
     <!-- Unsaved-changes guard -->
     <div v-if="confirmClose" class="modal-overlay" @click.self="confirmClose = false">
-      <div class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
+      <div ref="confirmPanel" tabindex="-1" class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
         <h3 class="text-sm font-semibold mb-2">Impostazioni non salvate</h3>
         <p class="text-xs text-white/60 mb-4">Hai modifiche non salvate. Vuoi salvarle?</p>
         <div class="flex flex-col gap-2">
@@ -184,9 +184,16 @@ import { useSettingsStore } from '@/stores/settings'
 import { storeToRefs } from 'pinia'
 import { ACCENT_PRESETS, type ColorMode, type Settings } from '@/types'
 import { depthShades } from '@/composables/useTree'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 import { OpenFolderDialog } from '../../wailsjs/go/main/App'
 
 const emit = defineEmits<{ (e: 'close'): void }>()
+
+// Focus trap esterno (pannello Impostazioni): attivo per tutta la vita del componente
+// (montato via v-if in App.vue), cleanup garantito da onUnmounted nel composable.
+const settingsPanel = ref<HTMLElement | null>(null)
+const settingsActive = ref(true)
+useFocusTrap(settingsPanel, settingsActive)
 
 const settingsStore = useSettingsStore()
 const { settings } = storeToRefs(settingsStore)
@@ -245,6 +252,12 @@ async function browse() {
 
 // ─── Save / close with unsaved-changes guard ─────────────────────────────────
 const confirmClose = ref(false)
+
+// Focus trap interno (conferma chiusura): annidato sopra Impostazioni. Lo stack nel
+// composable garantisce che finché è aperto abbia la precedenza e che il trap esterno
+// non strappi il focus.
+const confirmPanel = ref<HTMLElement | null>(null)
+useFocusTrap(confirmPanel, computed(() => confirmClose.value))
 
 async function save() {
   await settingsStore.save()   // settings.value is already live-synced to local

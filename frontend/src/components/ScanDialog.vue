@@ -1,6 +1,6 @@
 <template>
   <div class="modal-overlay" @click.self="emit('close')">
-    <div class="glass-strong rounded-2xl shadow-glass w-[520px] max-h-[80vh] flex flex-col animate-fade-in">
+    <div ref="panel" tabindex="-1" class="glass-strong rounded-2xl shadow-glass w-[520px] max-h-[80vh] flex flex-col animate-fade-in">
       <!-- Header -->
       <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/10 shrink-0">
         <div>
@@ -55,6 +55,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Node } from '@/types'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 
 interface ScanItem {
   id: string
@@ -72,6 +73,12 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'save', name: string, nodes: Node[]): void
 }>()
+
+// Focus trap: il dialog esiste solo quando montato (v-if in App.vue), quindi il trap è
+// attivo per tutta la sua vita; il cleanup è garantito da onUnmounted nel composable.
+const panel = ref<HTMLElement | null>(null)
+const trapActive = ref(true)
+useFocusTrap(panel, trapActive)
 
 const templateName = ref(props.sourcePath.split(/[\\/]/).pop() ?? '')
 const foldersOnly = ref(true)   // by default only folders go into the template

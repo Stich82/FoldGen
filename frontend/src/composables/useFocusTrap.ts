@@ -1,4 +1,9 @@
-import { watch, type Ref } from 'vue'
+import { watch, onUnmounted, type Ref } from 'vue'
+
+// Stack condiviso da TUTTE le istanze (il modulo è un singleton). Solo il trap in cima
+// allo stack gestisce i tasti: così, con dialog annidati (es. confirmClose sopra
+// Impostazioni), il trap interno ha la precedenza e quello esterno non strappa il focus.
+const trapStack: object[] = []
 
 /**
  * Confina la navigazione da tastiera dentro `container` mentre `active` è true.
@@ -30,6 +35,11 @@ export function useFocusTrap(
 ) {
   let prev: HTMLElement | null = null
   let marked: HTMLElement | null = null
+  // Token identità di questa istanza nello stack dei trap.
+  const self = {}
+  // Rende activate/deactivate idempotenti (immediate watch + onUnmounted possono
+  // chiamare deactivate a vuoto).
+  let activated = false
 
   const focusable = () =>
     Array.from(
@@ -46,9 +56,11 @@ export function useFocusTrap(
   function focusWithMark(el: HTMLElement) {
     clearMark()
     el.focus()
-    // input/textarea/select hanno già il ring nativo :focus (funziona anche col focus
-    // programmatico): niente kbd-focus, così si evita il doppio anello.
-    if (!el.matches('input, textarea, select')) {
+    // Campi di testo/select hanno il ring nativo :focus (funziona anche col focus
+    // programmatico): niente kbd-focus, così si evita il doppio anello. Checkbox e radio
+    // invece in WKWebView NON ricevono ring nativo col .focus() programmatico, quindi
+    // devono ottenere la classe kbd-focus per restare visibili durante la navigazione.
+    if (!el.matches('input:not([type=checkbox]):not([type=radio]), textarea, select')) {
       el.classList.add('kbd-focus')
       marked = el
     }
@@ -56,6 +68,9 @@ export function useFocusTrap(
 
   function onKeydown(e: KeyboardEvent) {
     if (!active.value || !container.value) return
+    // Solo il trap in cima allo stack gestisce i tasti: il trap esterno non interferisce
+    // (né strappa il focus) finché un trap annidato è aperto sopra di esso.
+    if (trapStack[trapStack.length - 1] !== self) return
     const cur = document.activeElement as HTMLElement
     // Focus sfuggito fuori dal modal (es. sull'albero): riportalo dentro e blocca il tasto.
     if (!container.value.contains(cur)) {
@@ -82,21 +97,37 @@ export function useFocusTrap(
     clearMark()
   }
 
-  watch(active, (on) => {
-    if (on) {
-      prev = document.activeElement as HTMLElement
-      document.addEventListener('keydown', onKeydown, true)
-      document.addEventListener('pointerdown', onPointerdown, true)
-      requestAnimationFrame(() => {
-        const target = initialFocus?.() ?? focusable()[0]
-        if (target) focusWithMark(target)
-      })
-    } else {
-      document.removeEventListener('keydown', onKeydown, true)
-      document.removeEventListener('pointerdown', onPointerdown, true)
-      clearMark()
-      prev?.focus()
-      prev = null
-    }
-  })
+  function activate() {
+    if (activated) return
+    activated = true
+    prev = document.activeElement as HTMLElement
+    trapStack.push(self)
+    document.addEventListener('keydown', onKeydown, true)
+    document.addEventListener('pointerdown', onPointerdown, true)
+    requestAnimationFrame(() => {
+      const target = initialFocus?.() ?? focusable()[0]
+      if (target) focusWithMark(target)
+    })
+  }
+
+  function deactivate() {
+    if (!activated) return
+    activated = false
+    document.removeEventListener('keydown', onKeydown, true)
+    document.removeEventListener('pointerdown', onPointerdown, true)
+    // Rimozione robusta dallo stack (non si assume di essere in cima).
+    const i = trapStack.indexOf(self)
+    if (i >= 0) trapStack.splice(i, 1)
+    clearMark()
+    prev?.focus()
+    prev = null
+  }
+
+  // immediate: consente di passare un `active` sempre-true (dialog montati via v-if, che
+  // si attivano subito al mount). Per i flag inizialmente false esegue deactivate() a
+  // vuoto → no-op grazie all'idempotenza.
+  watch(active, (on) => (on ? activate() : deactivate()), { immediate: true })
+  // Cleanup affidabile quando il componente viene smontato (v-if) mentre il trap è
+  // ancora attivo: il watch non scatterebbe e i listener resterebbero orfani.
+  onUnmounted(deactivate)
 }
