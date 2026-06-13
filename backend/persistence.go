@@ -15,6 +15,12 @@ import (
 // This must be a writable location: storing data next to the executable breaks
 // when the app is installed read-only (e.g. /Applications, Program Files).
 func dataDir() string {
+	// FOLDGEN_DATA_DIR overrides the data location (for tests/portability):
+	// when set and non-empty it is used verbatim instead of os.UserConfigDir().
+	if override := os.Getenv("FOLDGEN_DATA_DIR"); override != "" {
+		_ = os.MkdirAll(override, 0o755)
+		return override
+	}
 	base, err := os.UserConfigDir()
 	if err != nil || base == "" {
 		base = os.TempDir()
@@ -135,21 +141,48 @@ func DeleteTemplate(name string) error {
 }
 
 func RenameTemplate(oldName, newName string) error {
+	newName = strings.TrimSpace(newName)
 	templates, err := LoadTemplates()
 	if err != nil {
 		return err
 	}
-	for _, t := range templates {
-		if t.Name == oldName {
-			// Write the new file first so a crash between the two ops leaves
-			// the old file intact rather than losing the template entirely.
-			if err := SaveTemplate(newName, t.Tree); err != nil {
-				return err
-			}
-			return DeleteTemplate(oldName)
+	var src *Template
+	for i := range templates {
+		if templates[i].Name == oldName {
+			src = &templates[i]
+			break
 		}
 	}
-	return errors.New("template non trovato: " + oldName)
+	if src == nil {
+		return errors.New("template non trovato: " + oldName)
+	}
+
+	oldKey := templateNameKey(oldName)
+	newKey := templateNameKey(newName)
+
+	// Reject a collision with a *different* existing template (would overwrite
+	// it on save). A name sharing oldName's key is the source itself — allowed.
+	for i := range templates {
+		if templates[i].Name == oldName {
+			continue
+		}
+		if templateNameKey(templates[i].Name) == newKey {
+			return errors.New("esiste già un template con questo nome: " + newName)
+		}
+	}
+
+	// Write the new file first so a crash between the two ops leaves the old
+	// file intact rather than losing the template entirely.
+	if err := SaveTemplate(newName, src.Tree); err != nil {
+		return err
+	}
+	// When the key is unchanged (e.g. case-only rename "report" → "Report") the
+	// destination file *is* the source file: it was just rewritten, so deleting
+	// oldName would wipe the renamed template. Skip the delete in that case.
+	if newKey == oldKey {
+		return nil
+	}
+	return DeleteTemplate(oldName)
 }
 
 func DuplicateTemplate(name string) (Template, error) {
@@ -208,6 +241,8 @@ func ExportTemplate(name, destPath string, tree []Node) error {
 }
 
 // sanitizeFilename strips characters unsafe for filenames.
+// NB: replicata in frontend/src/utils/sanitize.ts (sanitizeFilename) — se
+// modifichi questa logica, aggiorna anche la versione TS.
 func sanitizeFilename(name string) string {
 	replacer := strings.NewReplacer(
 		"/", "_", "\\", "_", ":", "_", "*", "_",
@@ -221,4 +256,13 @@ func sanitizeFilename(name string) string {
 		}
 	}
 	return s
+}
+
+// templateNameKey is the normalized collision key for a template name: the
+// sanitized filename, lowercased. Two names sharing a key map to the same file
+// on disk (case-insensitive filesystems, or names that sanitize identically).
+// NB: replicata in frontend/src/utils/sanitize.ts (templateNameKey) — se
+// modifichi questa logica, aggiorna anche la versione TS.
+func templateNameKey(name string) string {
+	return strings.ToLower(sanitizeFilename(strings.TrimSpace(name)))
 }

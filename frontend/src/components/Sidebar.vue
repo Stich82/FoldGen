@@ -103,11 +103,12 @@
           class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
           <h3 class="text-sm font-semibold mb-1">Nuovo template</h3>
           <p class="text-xs text-white/40 mb-3">Scegli un nome per il nuovo template</p>
-          <input v-model="newDialog.value" class="input-base mb-4" placeholder="es. Progetto Web"
+          <input v-model="newDialog.value" class="input-base" placeholder="es. Progetto Web"
             @keydown.enter="confirmNew" @keydown.esc="newDialog.visible = false" ref="newInput"/>
-          <div class="flex gap-2 justify-end">
+          <p v-if="newError" class="text-xs text-red-400 mt-2">{{ newError }}</p>
+          <div class="flex gap-2 justify-end mt-4">
             <button class="btn-ghost" @click="newDialog.visible = false">Annulla</button>
-            <button class="btn-accent" :disabled="!newDialog.value.trim()" @click="confirmNew">Crea</button>
+            <button class="btn-accent" :disabled="!newDialog.value.trim() || !!newError" @click="confirmNew">Crea</button>
           </div>
         </div>
       </div>
@@ -119,10 +120,11 @@
         <div ref="renamePanel" tabindex="-1" @keydown.esc="renameDialog.visible = false"
           class="glass-strong rounded-2xl shadow-glass p-6 w-80 animate-fade-in">
           <h3 class="text-sm font-semibold mb-3">Rinomina template</h3>
-          <input v-model="renameDialog.value" class="input-base mb-4" @keydown.enter="confirmRename" @keydown.esc="renameDialog.visible = false" ref="renameInput"/>
-          <div class="flex gap-2 justify-end">
+          <input v-model="renameDialog.value" class="input-base" @keydown.enter="confirmRename" @keydown.esc="renameDialog.visible = false" ref="renameInput"/>
+          <p v-if="renameError" class="text-xs text-red-400 mt-2">{{ renameError }}</p>
+          <div class="flex gap-2 justify-end mt-4">
             <button class="btn-ghost" @click="renameDialog.visible = false">Annulla</button>
-            <button class="btn-accent" :disabled="!renameDialog.value.trim()" @click="confirmRename">Salva</button>
+            <button class="btn-accent" :disabled="!renameDialog.value.trim() || !!renameError" @click="confirmRename">Salva</button>
           </div>
         </div>
       </div>
@@ -149,6 +151,7 @@
 import { ref, computed, nextTick } from 'vue'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import { useTemplatesStore } from '@/stores/templates'
+import { templateNameKey } from '@/utils/sanitize'
 import { storeToRefs } from 'pinia'
 
 const emit = defineEmits<{
@@ -181,12 +184,21 @@ const newInput = ref<HTMLInputElement | null>(null)
 const newPanel = ref<HTMLElement | null>(null)
 useFocusTrap(newPanel, computed(() => newDialog.value.visible), () => newInput.value)
 
+const newError = computed(() => {
+  const name = newDialog.value.value.trim()
+  if (!name) return ''                       // empty → button stays disabled, no message
+  const key = templateNameKey(name)
+  return list.value.some(t => templateNameKey(t.template_name) === key)
+    ? 'Esiste già un template con questo nome' : ''
+})
+
 function openNewDialog() {
   newDialog.value = { visible: true, value: '' }
   nextTick(() => newInput.value?.focus())
 }
 
 function confirmNew() {
+  if (newError.value) return
   const name = newDialog.value.value.trim()
   if (!name) return
   newDialog.value.visible = false
@@ -208,6 +220,16 @@ function openCtx(e: MouseEvent, name: string) {
   ctx.value = { visible: true, x: e.clientX, y: e.clientY, name }
 }
 
+const renameError = computed(() => {
+  const name = renameDialog.value.value.trim()
+  if (!name) return ''
+  const { oldName } = renameDialog.value
+  const key = templateNameKey(name)
+  // Exclude the template being renamed so case-only self-renames stay allowed.
+  return list.value.some(t => t.template_name !== oldName && templateNameKey(t.template_name) === key)
+    ? 'Esiste già un template con questo nome' : ''
+})
+
 function ctxRename() {
   renameDialog.value = { visible: true, value: ctx.value.name, oldName: ctx.value.name }
   ctx.value.visible = false
@@ -215,6 +237,7 @@ function ctxRename() {
 }
 
 async function confirmRename() {
+  if (renameError.value) return
   const { oldName, value } = renameDialog.value
   if (!value.trim() || value === oldName) { renameDialog.value.visible = false; return }
   try {
