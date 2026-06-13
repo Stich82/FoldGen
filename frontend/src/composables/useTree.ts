@@ -1,4 +1,5 @@
 import { type Node, type TreeItem } from '@/types'
+import { templateNameKey } from '@/utils/sanitize'
 
 let _idCounter = 0
 /** Monotonic runtime id generator (ids are not persisted). */
@@ -89,6 +90,33 @@ export function isAncestor(root: TreeItem[], ancestorId: string, targetId: strin
   if (!ancestor) return false
   return findById(ancestor.children, targetId) !== null ||
     ancestor.children.some((c: TreeItem) => isAncestor(ancestor.children, c.id, targetId))
+}
+
+// ─── Naming / duplicate detection ───────────────────────────────────────────
+
+// Matches an optional leading space + "(copy)" or "(copy N)" at end of string.
+const COPY_SUFFIX = /\s*\(copy(?:\s+\d+)?\)$/i
+
+/** True when a sibling already uses `name` (normalized key), excluding `exceptId`
+ *  (e.g. the node being renamed against itself). Case-only and sanitize-only
+ *  collisions both count as duplicates, matching templateNameKey semantics. */
+export function siblingNameExists(siblings: TreeItem[], name: string, exceptId?: string): boolean {
+  const key = templateNameKey(name)
+  return siblings.some(s => s.id !== exceptId && templateNameKey(s.name) === key)
+}
+
+/** Returns a name unique among `siblings`. Always strips a trailing "(copy)"/
+ *  "(copy N)" from `desiredName` first (so a moved "Report (copy)" reverts to
+ *  "Report" when free, and progressives never nest). If the stripped base is
+ *  free it is returned; otherwise "base (copy)", "base (copy 2)", … is tried. */
+export function uniqueChildName(siblings: TreeItem[], desiredName: string, exceptId?: string): string {
+  let base = desiredName.replace(COPY_SUFFIX, '').trim()
+  if (!base) base = desiredName.trim()        // fallback: name was only "(copy)"
+  if (!siblingNameExists(siblings, base, exceptId)) return base
+  let candidate = `${base} (copy)`
+  let n = 2
+  while (siblingNameExists(siblings, candidate, exceptId)) candidate = `${base} (copy ${n++})`
+  return candidate
 }
 
 // ─── Mutation ─────────────────────────────────────────────────────────────────

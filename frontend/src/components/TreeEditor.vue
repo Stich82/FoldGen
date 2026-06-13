@@ -150,6 +150,7 @@ import { storeToRefs } from 'pinia'
 import {
   findById, detach, insertBefore, insertAfter, insertInto,
   isAncestor, recalcDepths, flattenVisible, topLevelSelected,
+  findParentList, uniqueChildName,
 } from '@/composables/useTree'
 import type { DropPosition, TreeItem } from '@/types'
 
@@ -330,6 +331,7 @@ function onDragLeave(id: string) {
   if (springId === id) clearSpring()
 }
 
+// TODO(future): centralizzare la logica di drop nello store per riusare la dedup di moveSelectionInto.
 function onDrop(dropTargetId: string) {
   clearSpring()
   const { sourceId, targetId, position } = editorStore.drag
@@ -348,13 +350,18 @@ function onDrop(dropTargetId: string) {
   editorStore.pushUndo()
   const nodes = moving.map(id => detach(tree.value, id)).filter((n): n is TreeItem => !!n)
 
+  // Live sibling list of the drop destination; uniqueChildName recomputes per node.
+  const siblings = position === 'into'
+    ? findById(tree.value, targetId)?.children ?? tree.value
+    : findParentList(tree.value, targetId)?.[0] ?? tree.value
+
   if (position === 'into') {
-    for (const n of nodes) insertInto(tree.value, targetId, n)
+    for (const n of nodes) { n.name = uniqueChildName(siblings, n.name); insertInto(tree.value, targetId, n) }
   } else if (position === 'before') {
-    for (const n of nodes) insertBefore(tree.value, targetId, n)
+    for (const n of nodes) { n.name = uniqueChildName(siblings, n.name); insertBefore(tree.value, targetId, n) }
   } else {
     let ref = targetId
-    for (const n of nodes) { insertAfter(tree.value, ref, n); ref = n.id }
+    for (const n of nodes) { n.name = uniqueChildName(siblings, n.name); insertAfter(tree.value, ref, n); ref = n.id }
   }
 
   recalcDepths(tree.value)

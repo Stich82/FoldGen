@@ -260,9 +260,10 @@ import { useSettingsStore } from '@/stores/settings'
 import {
   nodesToItems, itemsToNodes, toAsciiTree, flattenVisible,
   moveUp, moveDown, promote, demoteNode, findById,
+  siblingNameExists, findParentList,
 } from '@/composables/useTree'
 import { useFocusTrap } from '@/composables/useFocusTrap'
-import type { Node } from '@/types'
+import type { Node, TreeItem } from '@/types'
 
 import {
   ScanFolder, CreateFolders, GenerateBat, GenerateSh,
@@ -420,7 +421,19 @@ function openAdd(opts: { mode: 'child' | 'sibling'; anchorId: string | null }) {
   nextTick(() => addInput.value?.focus())
 }
 
-watch(() => addDialog.value.value, async (v) => { addError.value = await validate(v) })
+// Watch text AND type/anchor so switching Figlia/Adiacente revalidates the siblings.
+watch(
+  () => [addDialog.value.value, addDialog.value.type, addDialog.value.anchorId] as const,
+  async ([v]) => {
+    const anchorId = addDialog.value.anchorId
+    const anchor = anchorId ? findById(tree.value, anchorId) : null
+    // child-folder into a folder anchor → its children; otherwise the anchor's sibling list.
+    const siblings = addDialog.value.type === 'child-folder' && anchor && !anchor.is_file
+      ? anchor.children
+      : (anchorId ? findParentList(tree.value, anchorId)?.[0] ?? tree.value : tree.value)
+    addError.value = (await validate(v)) || siblingErrorFor(v, siblings)
+  }
+)
 
 async function confirmAdd() {
   const name = addDialog.value.value.trim()
@@ -448,7 +461,11 @@ function openRename(id: string) {
   renameError.value = ''
   nextTick(() => renameInput.value?.select())
 }
-watch(() => renameDialog.value.value, async (v) => { renameError.value = await validate(v) })
+watch(() => renameDialog.value.value, async (v) => {
+  const id = renameDialog.value.id
+  const siblings = findParentList(tree.value, id)?.[0] ?? tree.value
+  renameError.value = (await validate(v)) || siblingErrorFor(v, siblings, id)
+})
 
 function confirmRename() {
   const name = renameDialog.value.value.trim()
@@ -481,6 +498,14 @@ async function validate(name: string): Promise<string> {
     const res = await ValidateName(v) as unknown as [boolean, string]
     return res[0] ? '' : res[1]
   } catch { return '' }
+}
+
+/** Inline error when `name` collides with an existing sibling (normalized key). */
+function siblingErrorFor(name: string, siblings: TreeItem[], exceptId?: string): string {
+  if (!name.trim()) return ''
+  return siblingNameExists(siblings, name, exceptId)
+    ? 'A folder with this name already exists here.'
+    : ''
 }
 
 // ─── ASCII preview ──────────────────────────────────────────────────────────────

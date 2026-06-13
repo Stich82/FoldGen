@@ -4,7 +4,7 @@ import { type TreeItem, type DragState } from '@/types'
 import {
   deepCloneItems, recalcDepths, countAll, findById, newId,
   reassignIds, topLevelSelected, insertAfter, insertInto, detach, isAncestor,
-  maxDepth, expandToLevel as applyExpandToLevel,
+  maxDepth, expandToLevel as applyExpandToLevel, findParentList, uniqueChildName,
 } from '@/composables/useTree'
 
 const MAX_UNDO = 50
@@ -208,6 +208,11 @@ export const useEditorStore = defineStore('editor', () => {
       const clone = deepCloneItems([clip])[0]
       reassignIds(clone)
       pastedIds.push(clone.id)
+      // Sibling list of the paste destination (live array; updates as we go).
+      const siblings = anchor
+        ? (anchor.is_file ? findParentList(tree.value, anchor.id)?.[0] ?? tree.value : anchor.children)
+        : tree.value
+      clone.name = uniqueChildName(siblings, clone.name)
       if (anchor && !anchor.is_file) { anchor.children.push(clone); anchor.expanded = true }
       else if (anchor) insertAfter(tree.value, anchor.id, clone)
       else tree.value.push(clone)
@@ -227,6 +232,8 @@ export const useEditorStore = defineStore('editor', () => {
       const clone = deepCloneItems([src])[0]
       reassignIds(clone)
       newIds.push(clone.id)
+      const siblings = findParentList(tree.value, id)?.[0] ?? tree.value
+      clone.name = uniqueChildName(siblings, clone.name)
       insertAfter(tree.value, id, clone)
     }
     recalcDepths(tree.value)
@@ -252,6 +259,9 @@ export const useEditorStore = defineStore('editor', () => {
     pushUndo()
     const nodes = ids.map(id => detach(tree.value, id)).filter((n): n is TreeItem => !!n)
     for (const n of nodes) {
+      // Siblings computed after detach so a node never collides with itself.
+      const siblings = targetId === null ? tree.value : findById(tree.value, targetId)?.children ?? tree.value
+      n.name = uniqueChildName(siblings, n.name)
       if (targetId === null) tree.value.push(n)
       else insertInto(tree.value, targetId, n)
     }
